@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#123d3b">
+    <meta name="description" content="แผนที่ติดตามระดับน้ำ สถานีเสี่ยง และช่วยวางแผนเส้นทางในช่วงน้ำท่วม">
+    <meta name="goatcounter-code" content="namtuam">
+    <title>NamTuam นํ้าท่วม — แผนที่และวางแผนการเดินทาง</title>
+  <script src="./theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
+  <script src="./app.js" defer></script>
+  <script type="module" src="./firebase-auth.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="NamTuam นํ้าท่วม หน้าแรก">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none"><path d="M16 3.5S6.5 14 6.5 20.2a9.5 9.5 0 0 0 19 0C25.5 14 16 3.5 16 3.5Z" fill="currentColor"/><path d="M11 21.5c1.1 2.3 3 3.4 5.7 3.4" stroke="white" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </span>
+      <span class="brand-copy"><strong>NamTuam นํ้าท่วม</strong><small>THAILAND WATER WATCH</small></span>
+    </a>
+    <nav class="top-nav" aria-label="เมนูหลัก">
+      <a href="#overview">ภาพรวม</a>
+      <a href="#flood-map-section">แผนที่น้ำ</a>
+      <a href="#route-planner">วางแผนเส้นทาง</a>
+      <a href="#station-monitor">สถานีตรวจวัด</a>
+    </nav>
+    <div class="live-status"><span class="live-dot"></span><span>ข้อมูลสถานีตรวจวัดจริง</span></div>
+    <button id="language-toggle" class="language-toggle" type="button" aria-label="เปลี่ยนภาษา">EN</button>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="เปิดธีมมืด">
+      <span id="theme-toggle-icon" aria-hidden="true">☾</span>
+      <span id="theme-toggle-label">ธีมมืด</span>
+    </button>
+    <div id="auth-control" class="auth-control" data-auth-state="signed-out">
+      <button id="google-sign-in" class="google-sign-in" type="button">
+        <svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5Z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.39-4.55H24v9.02h12.9c-.58 2.96-2.26 5.48-4.75 7.17l7.73 6C44.38 37.95 46.98 31.81 46.98 24.55Z"/><path fill="#FBBC05" d="M10.53 28.59a14.4 14.4 0 0 1 0-9.18l-7.98-6.2a23.92 23.92 0 0 0 0 21.58l7.98-6.2Z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.9-5.81l-7.73-6c-2.14 1.44-4.89 2.3-8.17 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.2C6.51 42.62 14.62 48 24 48Z"/></svg>
+        <span>เข้าสู่ระบบด้วย Google</span>
+      </button>
+      <div id="auth-user" class="auth-user" hidden>
+        <img id="auth-avatar" class="auth-avatar" alt="" hidden>
+        <span id="auth-avatar-fallback" class="auth-avatar-fallback" hidden aria-hidden="true">●</span>
+        <span id="auth-user-name" class="auth-user-name"></span>
+        <button id="google-sign-out" class="google-sign-out" type="button">ออกจากระบบ</button>
+      </div>
+      <span id="auth-status" class="auth-status" role="status" aria-live="polite" hidden></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="overview" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <p class="eyebrow">THAILAND FLOOD WATCH · ข้อมูลจริงจากสถานี</p>
+        <h1 id="hero-title">รู้สถานการณ์น้ำ<br><span>ก่อนออกเดินทาง</span></h1>
+        <p class="hero-description">ดูจุดตรวจวัดที่รายงานน้ำล้นตลิ่งทั่วประเทศไทย เช็กข้อมูลระดับน้ำ และวางแผนเส้นทางเบื้องต้นได้ในหน้าเดียว</p>
+        <div class="hero-live-line"><span class="live-dot"></span><span id="hero-updated">กำลังโหลดสถานการณ์ล่าสุด…</span></div>
+        <div class="hero-actions">
+          <a class="primary-action" href="#route-planner">วางแผนเส้นทาง <span aria-hidden="true">↓</span></a>
+          <a class="secondary-action" href="#station-monitor">ดูสถานีเสี่ยง</a>
+        </div>
+        <div class="hero-alert">
+          <span class="hero-alert-icon" aria-hidden="true">!</span>
+          <div><strong><span id="hero-flood-count">—</span> สถานีรายงานน้ำล้นตลิ่ง</strong><span id="hero-summary">กำลังสรุปข้อมูลจากสถานีทั่วประเทศ</span></div>
+        </div>
+      </div>
+      <div class="hero-side">
+        <div class="hero-orbit" aria-hidden="true"><span></span><span></span><span></span><i>น้ำ</i></div>
+        <div class="hero-side-card">
+          <span class="hero-side-kicker">วางแผนก่อนออกเดินทาง</span>
+          <strong>ติดตามสถานการณ์<br>จากข้อมูลจริง</strong>
+          <span>ข้อมูลสถานีระดับน้ำทั่วประเทศ พร้อมเครื่องมือค้นหาเส้นทาง</span>
+          <a href="#flood-map-section">เปิดแผนที่เฝ้าระวัง <b aria-hidden="true">↓</b></a>
+        </div>
+      </div>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+    <section class="flood-map-section" id="flood-map-section" aria-labelledby="flood-map-title">
+      <div class="section-heading flood-map-title">
+        <div><p class="eyebrow">LIVE FLOOD & WATER LEVELS</p><h2 id="flood-map-title">แผนที่เฝ้าระวังน้ำทั่วประเทศไทย</h2><p>ดูสถานีตรวจวัด จุดรายงานน้ำล้นตลิ่ง และการแจ้งเตือนก่อนเดินทาง</p></div>
+        <div class="map-live-updated"><span class="live-dot"></span><span id="map-count">กำลังโหลดสถานี…</span><button id="map-reset" class="map-reset" type="button">ภาพรวมประเทศไทย</button></div>
+      </div>
+      <div class="flood-map-layout">
+        <aside class="alert-sidebar" aria-label="การแจ้งเตือนและเบอร์ติดต่อฉุกเฉิน">
+          <section class="sidebar-card alert-card" aria-labelledby="alerts-title">
+            <div class="sidebar-title">
+              <span class="sidebar-title-icon alert-title-icon" aria-hidden="true">!</span>
+              <div><h3 id="alerts-title">การแจ้งเตือน</h3><p>รายงานจากสถานีตรวจวัดจริง</p></div>
+            </div>
+            <div class="alert-total"><strong id="count-flood">—</strong><span>สถานีรายงานน้ำล้นตลิ่ง</span></div>
+            <div class="alert-secondary"><span>ระดับน้ำมาก</span><strong id="count-high">— สถานี</strong></div>
+            <div class="alert-list-heading"><span>จุดรายงานล่าสุด</span><a href="#station-monitor">ดูทั้งหมด</a></div>
+            <div id="alert-stations" class="alert-stations" aria-live="polite">
+              <div class="list-placeholder">กำลังโหลดรายการแจ้งเตือน…</div>
+            </div>
+            <p class="alert-disclaimer">การแจ้งเตือนเป็นรายสถานี ไม่ใช่ขอบเขตน้ำท่วม ถนนอาจมีเหตุที่ข้อมูลนี้ไม่ครอบคลุม</p>
+          </section>
+
+          <section class="sidebar-card news-card" aria-labelledby="news-title">
+            <div class="sidebar-title">
+              <span class="sidebar-title-icon news-title-icon" aria-hidden="true">↯</span>
+              <div><h3 id="news-title">ข่าวและเหตุเตือนภัย</h3><p>ข่าวล่าสุดจากสื่อ · อัปเดตอัตโนมัติ</p></div>
+            </div>
+            <div class="news-actions">
+              <button id="refresh-news" class="news-refresh" type="button">รีเฟรชข่าว</button>
+              <button id="enable-news-notifications" class="news-notification-toggle" type="button">เปิดแจ้งเตือน</button>
+            </div>
+            <p id="news-status" class="news-status" role="status" aria-live="polite">กำลังโหลดข่าว…</p>
+            <div id="news-list" class="news-list" aria-live="polite"></div>
+            <a class="news-search-link" href="https://news.google.com/search?q=%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%97%E0%B9%88%E0%B8%A7%E0%B8%A1+OR+%E0%B8%AD%E0%B8%B8%E0%B8%97%E0%B8%81%E0%B8%A0%E0%B8%B1%E0%B8%A2+OR+%E0%B8%99%E0%B9%89%E0%B8%B3%E0%B8%9B%E0%B9%88%E0%B8%B2&amp;hl=th&amp;gl=TH&amp;ceid=TH%3Ath" target="_blank" rel="noopener noreferrer">ดูข่าวน้ำท่วมเพิ่มเติมใน Google News ↗</a>
+            <p class="news-disclaimer">ข่าวช่วยติดตามเหตุการณ์ ไม่ใช่ประกาศยืนยันการปิดถนนหรือคำเตือนภัยทางการ</p>
+          </section>
+
+          <section class="sidebar-card contact-card" aria-labelledby="contact-title">
+            <div class="sidebar-title">
+              <span class="sidebar-title-icon contact-title-icon" aria-hidden="true">☎</span>
+              <div><h3 id="contact-title">สายด่วนฉุกเฉิน</h3><p>แตะหมายเลขเพื่อโทรออก</p></div>
+            </div>
+            <a class="hotline-row" href="tel:1784"><span class="hotline-number">1784</span><span class="hotline-info"><strong>แจ้งเหตุสาธารณภัย · ปภ.</strong><small>กรมป้องกันและบรรเทาสาธารณภัย</small></span><span class="call-icon" aria-hidden="true">↗</span></a>
+            <a class="hotline-row" href="tel:1669"><span class="hotline-number">1669</span><span class="hotline-info"><strong>การแพทย์ฉุกเฉิน</strong><small>สถาบันการแพทย์ฉุกเฉินแห่งชาติ</small></span><span class="call-icon" aria-hidden="true">↗</span></a>
+            <a class="hotline-row" href="tel:191"><span class="hotline-number">191</span><span class="hotline-info"><strong>เหตุด่วนเหตุร้าย · ตำรวจ</strong><small>สำนักงานตำรวจแห่งชาติ</small></span><span class="call-icon" aria-hidden="true">↗</span></a>
+            <a class="hotline-row" href="tel:1586"><span class="hotline-number">1586</span><span class="hotline-info"><strong>สอบถามเส้นทาง · กรมทางหลวง</strong><small>ข้อมูลทางหลวงและการเดินทาง</small></span><span class="call-icon" aria-hidden="true">↗</span></a>
+            <div class="hotline-sources">
+              <a href="https://www.disaster.go.th/" target="_blank" rel="noopener noreferrer">ปภ. <span aria-hidden="true">↗</span></a>
+              <a href="https://www.niems.go.th/" target="_blank" rel="noopener noreferrer">สพฉ. <span aria-hidden="true">↗</span></a>
+              <a href="https://www.royalthaipolice.go.th/" target="_blank" rel="noopener noreferrer">ตำรวจ <span aria-hidden="true">↗</span></a>
+              <a href="https://www.doh.go.th/" target="_blank" rel="noopener noreferrer">กรมทางหลวง <span aria-hidden="true">↗</span></a>
+            </div>
+          </section>
+        </aside>
+
+        <div class="large-map-panel panel">
+          <div class="large-map-wrap">
+            <div id="map" role="application" aria-label="แผนที่ประเทศไทยแสดงสถานีวัดระดับน้ำและเส้นทาง"></div>
+            <div class="map-legend" aria-label="คำอธิบายสัญลักษณ์">
+              <span><i class="legend-dot flood-dot"></i>น้ำล้นตลิ่ง</span>
+              <span><i class="legend-dot high-dot"></i>น้ำมาก</span>
+              <span><i class="legend-dot normal-dot"></i>ไม่พบรายงานล้นตลิ่ง</span>
+              <span><i class="legend-dot stale-dot"></i>ข้อมูลเก่า / ไม่ระบุ</span>
+              <span><i class="route-line-key"></i>เส้นทางคำนวณได้</span>
+              <span><i class="route-line-key risk"></i>พบสถานีเสี่ยงใกล้แนวถนน</span>
+            </div>
+          </div>
+          <div class="large-map-foot"><span class="info-mark" aria-hidden="true">i</span> หมุดคือสถานีตรวจวัด ไม่ใช่ขอบเขตน้ำท่วมทั้งจังหวัด พื้นที่ไม่มีหมุดไม่ได้ยืนยันว่าปลอดภัย · <span>ข้อมูลล่าสุด <strong id="last-updated">กำลังโหลดข้อมูล…</strong></span><button id="refresh-button" class="refresh-button" type="button" aria-label="รีเฟรชข้อมูล" title="รีเฟรชข้อมูล">รีเฟรช</button></div>
+        </div>
+      </div>
+
+      <div class="map-summary" aria-label="สรุปสถานการณ์จากสถานี">
+        <article class="summary-card summary-total"><span class="summary-icon" aria-hidden="true">⌖</span><div><span class="summary-label">สถานีมีข้อมูลล่าสุด</span><strong id="count-total">—</strong><small>รายงานภายใน 24 ชั่วโมง</small></div></article>
+        <article class="summary-card summary-normal"><span class="summary-icon" aria-hidden="true">✓</span><div><span class="summary-label">ไม่พบรายงานล้นตลิ่ง</span><strong id="count-not-flooded">—</strong><small>ข้อมูลจากสถานีระดับปกติหรือต่ำ</small></div></article>
+      </div>
+    </section>
+
+    <section class="resource-section" id="help-locations" aria-labelledby="resource-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">NEARBY HELP & CARE</p><h2 id="resource-title">ที่พักพิงและสถานพยาบาลใกล้ฉัน</h2><p>ค้นหาจาก OpenStreetMap เมื่ออนุญาตให้ใช้ตำแหน่งปัจจุบัน รายชื่อและเบอร์โทรอาจไม่ครบถ้วน โปรดยืนยันก่อนเดินทาง</p></div>
+        <span class="section-step">02 <span>/ จุดช่วยเหลือ</span></span>
+      </div>
+      <div class="resource-card panel">
+        <div class="resource-controls">
+          <button id="find-nearby-help" class="route-submit" type="button">⌖ ค้นหาจากตำแหน่งปัจจุบัน</button>
+          <span id="resource-status" class="route-status" role="status" aria-live="polite">ตำแหน่งของคุณจะใช้เฉพาะเพื่อค้นหาและนำทางในครั้งนี้</span>
+        </div>
+        <div id="resource-results" class="resource-results" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="route-section" id="route-planner" aria-labelledby="route-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">PLAN YOUR JOURNEY</p><h2 id="route-title">วางแผนเส้นทางเบื้องต้น</h2><p>ค้นหาเส้นทางขับรถระหว่างสถานที่ และตรวจดูสถานีเฝ้าระวังใกล้แนวเส้นทาง</p></div>
+        <span class="section-step">01 <span>/ การเดินทาง</span></span>
+      </div>
+      <div class="route-card panel">
+        <form id="route-form" class="route-form">
+          <label class="route-field"><span>ต้นทาง</span><input id="route-origin" name="origin" type="search" placeholder="เช่น อนุสาวรีย์ชัยสมรภูมิ" autocomplete="street-address" required></label>
+          <span class="route-direction" aria-hidden="true">→</span>
+          <label class="route-field"><span>ปลายทาง</span><input id="route-destination" name="destination" type="search" placeholder="เช่น โรงพยาบาลศิริราช" autocomplete="street-address" required></label>
+          <button id="route-submit" class="route-submit" type="submit"><span aria-hidden="true">⌕</span> ค้นหาเส้นทาง</button>
+        </form>
+        <div class="route-disclaimer"><span class="info-mark" aria-hidden="true">i</span><p>ระบบแสดงว่าเส้นทางมีอยู่ในโครงข่ายแผนที่ และเตือนสถานีระดับน้ำเสี่ยงใกล้แนวทางเท่านั้น <strong>ยังไม่มีข้อมูลปิดถนน/ถนนน้ำท่วมแบบสดที่ใช้ยืนยันว่า “ไปได้” หรือ “ไปไม่ได้”</strong> หลังค้นหา กด “เปิดเส้นทางใน Google Maps” เพื่อดูเส้นทางที่ Google คำนวณ โปรดตรวจสอบ <a href="https://highwaytraffic.go.th/DOHWeb/Home.aspx" target="_blank" rel="noopener noreferrer">ข้อมูลจราจรกรมทางหลวง</a> หรือโทร 1586 ก่อนเดินทาง</p></div>
+        <div id="route-status" class="route-status" role="status" aria-live="polite" hidden></div>
+        <div id="route-results" class="route-results" hidden></div>
+        <div id="route-segments" class="route-segments" hidden></div>
+      </div>
+    </section>
+
+    <section class="monitor-section" id="station-monitor" aria-labelledby="monitor-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">OBSERVATIONS FROM REAL STATIONS</p><h2 id="monitor-title">ตรวจสอบสถานีและรายละเอียด</h2><p>ค้นหาจังหวัดหรือกรองสถานีตามระดับที่รายงาน</p></div>
+        <a class="map-jump" href="#overview">กลับไปดูแผนที่ ↑</a>
+      </div>
+      <div class="monitor-grid">
+        <article class="station-panel panel" aria-labelledby="station-title">
+          <div class="panel-heading station-title">
+            <div><h3 id="station-title">สถานีตรวจวัด</h3><p id="station-subtitle">ข้อมูลล่าสุดจากทุกภูมิภาค</p></div>
+          </div>
+          <div class="filters">
+            <label class="search-box">
+              <span aria-hidden="true">⌕</span>
+              <input id="search-input" type="search" placeholder="ค้นหาสถานีหรือจังหวัด" autocomplete="off" aria-label="ค้นหาสถานีหรือจังหวัด">
+            </label>
+            <div class="filter-row">
+              <label class="select-wrap"><span class="sr-only">กรองตามจังหวัด</span><select id="province-filter"><option value="">ทุกจังหวัด</option></select></label>
+              <label class="select-wrap"><span class="sr-only">กรองตามสถานะ</span><select id="status-filter">
+                <option value="all">ทุกสถานะ</option>
+                <option value="flood">น้ำล้นตลิ่ง</option>
+                <option value="high">น้ำมาก (ระดับ 4)</option>
+                <option value="normal">ไม่พบรายงานล้นตลิ่ง</option>
+                <option value="unknown">ข้อมูลเก่า / ไม่ระบุ</option>
+              </select></label>
+            </div>
+          </div>
+          <div id="station-list" class="station-list" aria-live="polite">
+            <div class="list-placeholder">กำลังเชื่อมต่อข้อมูลสถานี…</div>
+          </div>
+          <div id="list-footer" class="list-footer"></div>
+        </article>
+        <aside class="travel-notes panel">
+          <span class="travel-notes-icon" aria-hidden="true">⌖</span>
+          <p class="eyebrow">BEFORE YOU GO</p>
+          <h3>ก่อนออกเดินทาง</h3>
+          <ul>
+            <li>เช็กประกาศปิดถนนและสภาพเส้นทางจากหน่วยงานในพื้นที่</li>
+            <li>อย่าขับรถฝ่าน้ำไหลเชี่ยวหรือมองไม่เห็นพื้นถนน</li>
+            <li>ติดตามประกาศเตือนภัยและเตรียมเส้นทางสำรอง</li>
+            <li>หากมีเหตุฉุกเฉิน โทร 1784 (ปภ.) หรือ 1669 (การแพทย์ฉุกเฉิน)</li>
+          </ul>
+          <a href="https://www.disaster.go.th/" target="_blank" rel="noopener noreferrer">กรมป้องกันและบรรเทาสาธารณภัย <span aria-hidden="true">↗</span></a>
+        </aside>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <div><strong>แหล่งข้อมูล</strong> คลังข้อมูลน้ำแห่งชาติ (ThaiWater) · แผนที่ถนน OpenStreetMap</div>
+      <a href="https://www.thaiwater.net/" target="_blank" rel="noopener noreferrer">เปิดเว็บไซต์ ThaiWater <span aria-hidden="true">↗</span></a>
+      <p>ข้อมูลระดับน้ำมาจาก API สาธารณะของ ThaiWater ส่วนผลเส้นทางเป็นข้อมูลแผนที่ถนนจาก Photon/OSRM ไม่ใช่ข้อมูลปิดถนนหรือน้ำท่วมแบบเรียลไทม์ โปรดตรวจสอบประกาศทางการก่อนเดินทางเสมอ</p>
+      <div class="visitor-count" aria-live="polite"><span>ยอดเข้าชมเว็บไซต์</span><strong id="visitor-count">กำลังโหลด…</strong><a id="visitor-setup" href="https://www.goatcounter.com/" target="_blank" rel="noopener noreferrer" hidden>ตั้งค่าตัวนับ</a></div>
+    </footer>
+  </main>
+  <script src="./i18n.js" defer></script>
+  <script src="./news-alerts.js" defer></script>
+  <script src="./visitor-counter.js" defer></script>
+</body>
+</html>
